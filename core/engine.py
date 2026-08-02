@@ -16,6 +16,7 @@ from core.input_handler import InputHandler
 from core.command_parser import CommandParser
 from core.intent import IntentDetector
 from core.router import ActionRouter
+from brain.conversation import ConversationManager
 
 logger = get_logger(__name__)
 
@@ -33,6 +34,7 @@ class JarvisEngine:
         self.parser = CommandParser()
         self.intent_detector = IntentDetector()
         self.router = ActionRouter()
+        self.conversation_manager = ConversationManager()
 
     def start(self):
         """Starts the application and registers services."""
@@ -74,6 +76,10 @@ class JarvisEngine:
             # Exit loop gracefully if intent is exit
             if intent == "exit":
                 logger.info("JARVIS: Shutting down...")
+                farewell = self.conversation_manager.generate_response(raw_input)
+                if farewell == "I'm still learning. I don't know how to respond to that yet.":
+                    farewell = "Goodbye! Shutting down."
+                print(f"JARVIS: {farewell}")
                 self.state.set("system_status", "offline")
                 break
                 
@@ -81,7 +87,10 @@ class JarvisEngine:
             self.event_bus.publish("intent:detected", {"intent": intent})
             
             # 4. Route to an action and execute
-            result = self.router.route(intent, tokens)
+            if intent in ["greeting", "unknown"]:
+                result = self.conversation_manager.generate_response(raw_input)
+            else:
+                result = self.router.route(intent, tokens)
             
             # Publish event for execution result
             self.event_bus.publish("action:executed", {"result": result})
