@@ -7,6 +7,7 @@ generating conversational responses without using external AI APIs.
 """
 
 from typing import Dict
+from models.llm_interface import LLMInterface
 
 class ConversationManager:
     """Handles basic conversational inputs and generates appropriate responses."""
@@ -23,6 +24,7 @@ class ConversationManager:
             "thank you": "You're very welcome!",
             "bye": "Goodbye! Have a great day."
         }
+        self.llm = LLMInterface()
         
     def generate_response(self, text: str) -> str:
         """
@@ -46,5 +48,5 @@ class ConversationManager:
             if phrase in normalized_text:
                 return response
                 
-        # Default fallback for unknown inputs
-        return "I'm still learning. I don't know how to respond to that yet."
+        # Default fallback for unknown inputs, routes to LLM interface
+        return self.llm.ask(text)
