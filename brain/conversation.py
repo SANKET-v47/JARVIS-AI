@@ -8,6 +8,7 @@ generating conversational responses without using external AI APIs.
 
 from typing import Dict
 from models.llm_interface import LLMInterface
+from memory.session_memory import SessionMemory
 
 class ConversationManager:
     """Handles basic conversational inputs and generates appropriate responses."""
@@ -25,6 +26,7 @@ class ConversationManager:
             "bye": "Goodbye! Have a great day."
         }
         self.llm = LLMInterface()
+        self.memory = SessionMemory()
         
     def generate_response(self, text: str) -> str:
         """
@@ -36,17 +38,34 @@ class ConversationManager:
         Returns:
             str: The generated response, or a fallback message if unknown.
         """
+        self.memory.add_user_message(text)
+        
         normalized_text = text.lower().strip()
+        response_text = None
         
         # Check if the exact normalized phrase is in our map
         if normalized_text in self.response_map:
-            return self.response_map[normalized_text]
+            response_text = self.response_map[normalized_text]
             
         # Optional: check if the text contains any of the mapped phrases
         # This handles cases like "hi jarvis" or "who are you?"
-        for phrase, response in self.response_map.items():
-            if phrase in normalized_text:
-                return response
-                
+        if response_text is None:
+            for phrase, response in self.response_map.items():
+                if phrase in normalized_text:
+                    response_text = response
+                    break
+                    
         # Default fallback for unknown inputs, routes to LLM interface
-        return self.llm.ask(text)
+        if response_text is None:
+            history = self.memory.get_history()
+            prompt_lines = []
+            for msg in history:
+                role = "JARVIS" if msg["role"] == "assistant" else "User"
+                prompt_lines.append(f"{role}: {msg['content']}")
+            prompt_lines.append("JARVIS:")
+            prompt = "\n".join(prompt_lines)
+            
+            response_text = self.llm.ask(prompt)
+            
+        self.memory.add_assistant_message(response_text)
+        return response_text
