@@ -13,9 +13,6 @@ from utils.logger import get_logger
 
 # Existing subsystems to orchestrate
 from core.input_handler import InputHandler
-from core.command_parser import CommandParser
-from core.intent import IntentDetector
-from core.router import ActionRouter
 from brain.conversation import ConversationManager
 
 logger = get_logger(__name__)
@@ -31,9 +28,6 @@ class JarvisEngine:
         
         # Initialize subsystem pipeline
         self.input_handler = InputHandler()
-        self.parser = CommandParser()
-        self.intent_detector = IntentDetector()
-        self.router = ActionRouter()
         self.conversation_manager = ConversationManager()
 
     def start(self):
@@ -64,33 +58,20 @@ class JarvisEngine:
         while self.state.get("system_status") == "ready":
             # 1. Get input
             raw_input = self.input_handler.get_input()
-            
-            # 2. Parse and normalize
-            tokens = self.parser.parse(raw_input)
-            if not tokens:
+            if not raw_input or not raw_input.strip():
                 continue
-                
-            # 3. Detect intent
-            intent = self.intent_detector.detect(tokens)
             
-            # Exit loop gracefully if intent is exit
-            if intent == "exit":
+            normalized_input = raw_input.strip().lower()
+            
+            # Exit loop gracefully
+            if normalized_input == "exit":
                 logger.info("JARVIS: Shutting down...")
-                farewell = self.conversation_manager.generate_response(raw_input)
-                if farewell == "I'm still learning. I don't know how to respond to that yet.":
-                    farewell = "Goodbye! Shutting down."
-                print(f"JARVIS: {farewell}")
+                print("JARVIS: Goodbye! Shutting down.")
                 self.state.set("system_status", "offline")
                 break
                 
-            # Publish event for intent detection
-            self.event_bus.publish("intent:detected", {"intent": intent})
-            
-            # 4. Route to an action and execute
-            if intent in ["greeting", "unknown"]:
-                result = self.conversation_manager.generate_response(raw_input)
-            else:
-                result = self.router.route(intent, tokens)
+            # 2. Process via ConversationManager
+            result = self.conversation_manager.generate_response(raw_input)
             
             # Publish event for execution result
             self.event_bus.publish("action:executed", {"result": result})

@@ -76,14 +76,6 @@ class ToolManager:
                 target_dir = target if target else "."
                 return self.file_tools.list_files(target_dir)
                 
-            # Standard intents not executed by tools
-            elif intent in ["exit", "greeting", "unknown"]:
-                # The router or main loop usually handles these, but if they get here:
-                if intent == "greeting":
-                    return "Hello! I am JARVIS. How can I help you today?"
-                elif intent == "unknown":
-                    return "I'm sorry, I didn't understand that command."
-                
             return f"Intent '{intent}' is not supported by the ToolManager yet."
             
         except Exception as e:

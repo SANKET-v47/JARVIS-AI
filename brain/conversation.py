@@ -8,9 +8,12 @@ generating conversational responses without using external AI APIs.
 
 from typing import Dict, Optional
 import re
+import string
 from models.llm_interface import LLMInterface
 from memory.session_memory import SessionMemory
 from memory.long_term_memory import LongTermMemory
+from Planner.planner import Planner
+from tools.tool_manager import ToolManager
 
 class ConversationManager:
     """Handles basic conversational inputs and generates appropriate responses."""
@@ -30,7 +33,9 @@ class ConversationManager:
         self.llm = LLMInterface()
         self.memory = SessionMemory()
         self.long_term_memory = LongTermMemory()
-        
+        self.planner = Planner()
+        self.tool_manager = ToolManager()
+
     def generate_response(self, text: str) -> str:
         """
         Generates a response for the given input text.
@@ -42,28 +47,39 @@ class ConversationManager:
             str: The generated response, or a fallback message if unknown.
         """
         self.memory.add_user_message(text)
-        
         self._detect_and_save_facts(text)
         
-        normalized_text = text.lower().strip()
+        # 1. Ask Planner for a decision
+        plan = self.planner.analyze(text)
         
-        import string
-        normalized_text_no_punct = normalized_text.rstrip(string.punctuation)
-        response_text = self._handle_fact_retrieval(normalized_text_no_punct)
+        response_text = None
+        
+        # 2. Handle based on plan type
+        if plan.get("type") == "tool":
+            response_text = self.tool_manager.execute(plan)
+            self.memory.add_assistant_message(response_text)
+            return response_text
+            
+        elif plan.get("type") == "memory":
+            response_text = self.answer_memory_question(text)
+            self.memory.add_assistant_message(response_text)
+            return response_text
+            
+        # 3. Otherwise: normal conversation flow
+        normalized_text = text.lower().strip()
         
         # Check if the exact normalized phrase is in our map
         if response_text is None and normalized_text in self.response_map:
             response_text = self.response_map[normalized_text]
             
         # Optional: check if the text contains any of the mapped phrases
-        # This handles cases like "hi jarvis" or "who are you?"
         if response_text is None:
             for phrase, response in self.response_map.items():
                 if phrase in normalized_text:
                     response_text = response
                     break
                     
-        # Default fallback for unknown inputs, routes to LLM interface
+        # 4. If no response exists, send prompt to LLM
         if response_text is None:
             history = self.memory.get_history()
             prompt_lines = []
@@ -78,6 +94,12 @@ class ConversationManager:
         self.memory.add_assistant_message(response_text)
         return response_text
 
+    def answer_memory_question(self, text: str) -> str:
+        """Wrapper around _handle_fact_retrieval for Planner."""
+        normalized_text = text.lower().strip().rstrip(string.punctuation)
+        response = self._handle_fact_retrieval(normalized_text)
+        return response if response else "I don't know that yet."
+
     def _detect_and_save_facts(self, text: str) -> None:
         """Detects simple user facts using pattern matching and saves them."""
         patterns = [
@@ -86,7 +108,6 @@ class ConversationManager:
             (r"(?i)my favorite color is\s+(.+)", "favorite_color")
         ]
         
-        import string
         for pattern, key in patterns:
             match = re.search(pattern, text)
             if match:
@@ -112,4 +133,5 @@ class ConversationManager:
                 return "I don't know that yet."
                 
         return None
+
 
