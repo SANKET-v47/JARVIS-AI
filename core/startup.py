@@ -11,6 +11,7 @@ logic begins.
 from config.manager import ConfigManager
 from utils.logger import get_logger
 from core.version import get_version
+from memory.long_term_memory import LongTermMemory
 
 logger = get_logger(__name__)
 
@@ -39,5 +40,9 @@ class StartupManager:
         if not self.config.get_api_key():
             logger.warning("API_KEY is not set in the environment. Some features may be unavailable.")
             
+        # Initialize LongTermMemory
+        LongTermMemory()
+        logger.info("LongTermMemory initialized.")
+
         logger.info("Boot sequence completed successfully.")
         return self.config
