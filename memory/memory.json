@@ -3,5 +3,10 @@
         "type": "fact",
         "key": "name",
         "value": "sanket"
+    },
+    {
+        "type": "fact",
+        "key": "favorite_color",
+        "value": "black"
     }
 ]

@@ -6,7 +6,7 @@ This module provides the ConversationManager, responsible for
 generating conversational responses without using external AI APIs.
 """
 
-from typing import Dict
+from typing import Dict, Optional
 import re
 from models.llm_interface import LLMInterface
 from memory.session_memory import SessionMemory
@@ -46,10 +46,13 @@ class ConversationManager:
         self._detect_and_save_facts(text)
         
         normalized_text = text.lower().strip()
-        response_text = None
+        
+        import string
+        normalized_text_no_punct = normalized_text.rstrip(string.punctuation)
+        response_text = self._handle_fact_retrieval(normalized_text_no_punct)
         
         # Check if the exact normalized phrase is in our map
-        if normalized_text in self.response_map:
+        if response_text is None and normalized_text in self.response_map:
             response_text = self.response_map[normalized_text]
             
         # Optional: check if the text contains any of the mapped phrases
@@ -80,7 +83,7 @@ class ConversationManager:
         patterns = [
             (r"(?i)my name is\s+(.+)", "name"),
             (r"(?i)i am learning\s+(.+)", "learning"),
-            (r"(?i)my favorite color is\s+(.+)", "color")
+            (r"(?i)my favorite color is\s+(.+)", "favorite_color")
         ]
         
         import string
@@ -91,4 +94,22 @@ class ConversationManager:
                 value = value.rstrip(string.punctuation)
                 if value:
                     self.long_term_memory.save_fact(key, value)
+
+    def _handle_fact_retrieval(self, normalized_text: str) -> Optional[str]:
+        """Checks if the user is asking for a fact and returns the appropriate response."""
+        questions = {
+            "what is my name": ("name", "Your name is {value}."),
+            "what am i learning": ("learning", "You are learning {value}."),
+            "what is my favorite color": ("favorite_color", "Your favorite color is {value}.")
+        }
+        
+        if normalized_text in questions:
+            key, template = questions[normalized_text]
+            fact_value = self.long_term_memory.get_fact(key)
+            if fact_value:
+                return template.format(value=fact_value)
+            else:
+                return "I don't know that yet."
+                
+        return None
 

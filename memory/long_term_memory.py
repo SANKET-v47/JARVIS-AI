@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +71,50 @@ class LongTermMemory:
                 
         except Exception as e:
             logger.error(f"Error saving fact to long-term memory: {e}")
+
+    def get_fact(self, key: str) -> Optional[str]:
+        """
+        Retrieves a user fact from long-term memory.
+        
+        Args:
+            key (str): The fact key to retrieve.
+            
+        Returns:
+            Optional[str]: The fact value if found, else None.
+        """
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                memory_data = json.load(f)
+                
+            for item in memory_data:
+                if item.get("type") == "fact" and item.get("key") == key:
+                    value = item.get("value")
+                    logger.info(f"Successfully retrieved fact: {key} = {value}")
+                    return value
+                    
+        except Exception as e:
+            logger.error(f"Error retrieving fact from long-term memory: {e}")
+            
+        return None
+
+    def get_all_facts(self) -> List[Dict[str, str]]:
+        """
+        Retrieves all user facts from long-term memory.
+        
+        Returns:
+            List[Dict[str, str]]: A list of all fact items.
+        """
+        facts = []
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                memory_data = json.load(f)
+                
+            for item in memory_data:
+                if item.get("type") == "fact":
+                    facts.append(item)
+                    
+            logger.info(f"Retrieved {len(facts)} facts from long-term memory.")
+            return facts
+        except Exception as e:
+            logger.error(f"Error retrieving all facts from long-term memory: {e}")
+            return facts
