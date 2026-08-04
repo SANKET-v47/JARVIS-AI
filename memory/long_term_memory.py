@@ -40,3 +40,34 @@ class LongTermMemory:
             except Exception as e:
                 logger.error(f"Error initializing long-term memory file: {e}")
                 raise
+
+    def save_fact(self, key: str, value: str) -> None:
+        """
+        Saves or updates a user fact in long-term memory.
+        
+        Args:
+            key (str): The fact key (e.g., 'name', 'learning').
+            value (str): The fact value.
+        """
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                memory_data = json.load(f)
+                
+            updated = False
+            for item in memory_data:
+                if item.get("type") == "fact" and item.get("key") == key:
+                    item["value"] = value
+                    updated = True
+                    break
+                    
+            if updated:
+                logger.info(f"Updated fact:\n{key} = {value}")
+            else:
+                memory_data.append({"type": "fact", "key": key, "value": value})
+                logger.info(f"Saved fact:\n{key} = {value}")
+                
+            with open(self.file_path, "w", encoding="utf-8") as f:
+                json.dump(memory_data, f, indent=4)
+                
+        except Exception as e:
+            logger.error(f"Error saving fact to long-term memory: {e}")

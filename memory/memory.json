@@ -1,1 +1,7 @@
-[]
+[
+    {
+        "type": "fact",
+        "key": "name",
+        "value": "sanket"
+    }
+]

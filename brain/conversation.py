@@ -7,8 +7,10 @@ generating conversational responses without using external AI APIs.
 """
 
 from typing import Dict
+import re
 from models.llm_interface import LLMInterface
 from memory.session_memory import SessionMemory
+from memory.long_term_memory import LongTermMemory
 
 class ConversationManager:
     """Handles basic conversational inputs and generates appropriate responses."""
@@ -27,6 +29,7 @@ class ConversationManager:
         }
         self.llm = LLMInterface()
         self.memory = SessionMemory()
+        self.long_term_memory = LongTermMemory()
         
     def generate_response(self, text: str) -> str:
         """
@@ -39,6 +42,8 @@ class ConversationManager:
             str: The generated response, or a fallback message if unknown.
         """
         self.memory.add_user_message(text)
+        
+        self._detect_and_save_facts(text)
         
         normalized_text = text.lower().strip()
         response_text = None
@@ -69,3 +74,21 @@ class ConversationManager:
             
         self.memory.add_assistant_message(response_text)
         return response_text
+
+    def _detect_and_save_facts(self, text: str) -> None:
+        """Detects simple user facts using pattern matching and saves them."""
+        patterns = [
+            (r"(?i)my name is\s+(.+)", "name"),
+            (r"(?i)i am learning\s+(.+)", "learning"),
+            (r"(?i)my favorite color is\s+(.+)", "color")
+        ]
+        
+        import string
+        for pattern, key in patterns:
+            match = re.search(pattern, text)
+            if match:
+                value = match.group(1).strip()
+                value = value.rstrip(string.punctuation)
+                if value:
+                    self.long_term_memory.save_fact(key, value)
+
